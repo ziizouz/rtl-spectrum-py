@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rtl-spectrum"
+version = "1.0.0"
+description = "Python port of rtlSpectrum — spectral analysis for rtl_power data"
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = "Apache-2.0"}
+dependencies = [
+    "pandas",
+    "plotly",
+    "click",
+    "tqdm",
+    "kaleido",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[project.scripts]
+rtl-spectrum = "rtl_spectrum.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]

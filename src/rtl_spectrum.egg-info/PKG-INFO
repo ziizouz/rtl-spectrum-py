@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: rtl-spectrum
+Version: 1.0.0
+Summary: Python port of rtlSpectrum — spectral analysis for rtl_power data
+License: Apache-2.0
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+Requires-Dist: pandas
+Requires-Dist: plotly
+Requires-Dist: click
+Requires-Dist: tqdm
+Requires-Dist: kaleido
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"

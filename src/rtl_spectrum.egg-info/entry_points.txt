@@ -1,0 +1,2 @@
+[console_scripts]
+rtl-spectrum = rtl_spectrum.cli:cli
