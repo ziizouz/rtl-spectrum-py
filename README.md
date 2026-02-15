@@ -1,6 +1,6 @@
 # rtl-spectrum
 
-A modular Python library and CLI for spectral analysis of [rtl_power](http://kmkeen.com/rtl-power/) data.
+A modular Python library and CLI for spectral analysis of [rtl_power](https://www.kc1ght.com/sdr/rtl-power) data.
 
 Ported from the Java [rtlSpectrum](https://github.com/dernasherbrezon/rtlSpectrum) project.
 
