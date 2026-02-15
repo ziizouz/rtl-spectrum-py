@@ -3,10 +3,18 @@
 Provides a ``click``-based CLI with subcommands for loading,
 plotting, subtracting, saving, and running rtl_power scans.
 
+Supports multiple visualization modes via ``--mode``:
+  - ``average`` — traditional averaged spectrum (default)
+  - ``waterfall`` — spectrogram heatmap (X=freq, Y=time, color=dBm)
+  - ``peak`` — peak-hold (max power per frequency across sweeps)
+  - ``envelope`` — min/max/avg band across sweeps
+
 Usage::
 
     rtl-spectrum load scan.csv
-    rtl-spectrum load scan.csv --output spectrum.html
+    rtl-spectrum load scan.csv --mode waterfall
+    rtl-spectrum load scan.csv --mode peak --output peak.html
+    rtl-spectrum load scan.csv --mode envelope
     rtl-spectrum subtract --signal scan.csv --baseline noise.csv
     rtl-spectrum save --input scan.csv --output processed.csv
     rtl-spectrum run --freq-start 24000000 --freq-end 1700000000
@@ -17,9 +25,9 @@ from typing import Optional
 
 import click
 
-from rtl_spectrum.analysis import subtract
-from rtl_spectrum.io import load_csv, save_csv
-from rtl_spectrum.plotting import plot_spectrum
+from rtl_spectrum.analysis import envelope, peak_hold, subtract
+from rtl_spectrum.io import load_csv, load_csv_sweeps, save_csv
+from rtl_spectrum.plotting import plot_envelope, plot_spectrum, plot_waterfall
 from rtl_spectrum.runner import (
     DEFAULT_CROP,
     DEFAULT_FREQ_END,
@@ -29,6 +37,76 @@ from rtl_spectrum.runner import (
     DEFAULT_STEP,
     run_rtl_power,
 )
+
+#: Valid visualization mode choices for the ``--mode`` option.
+MODE_CHOICES = click.Choice(
+    ["average", "waterfall", "peak", "envelope"],
+    case_sensitive=False,
+)
+
+
+def _dispatch_mode(
+    mode: str,
+    csv_file: str,
+    title: str,
+    show: bool,
+    output: Optional[str],
+) -> None:
+    """Load data and dispatch to the correct analysis + plot path.
+
+    Args:
+        mode: One of ``average``, ``waterfall``, ``peak``, ``envelope``.
+        csv_file: Path to the rtl_power CSV file.
+        title: Plot title.
+        show: Whether to open the plot in the browser.
+        output: Optional file path to save the plot.
+    """
+    if mode == "average":
+        data = load_csv(csv_file)
+        click.echo(f"Loaded {len(data)} frequency bins.")
+        plot_spectrum(
+            datasets=[("Scan", data)],
+            title=title,
+            show=show,
+            output=output,
+        )
+    elif mode == "waterfall":
+        sweeps = load_csv_sweeps(csv_file)
+        total_bins = sum(len(bins) for _, bins in sweeps)
+        click.echo(
+            f"Loaded {len(sweeps)} sweeps, "
+            f"{total_bins} total bins."
+        )
+        plot_waterfall(
+            sweeps=sweeps,
+            title=title,
+            show=show,
+            output=output,
+        )
+    elif mode == "peak":
+        sweeps = load_csv_sweeps(csv_file)
+        click.echo(f"Loaded {len(sweeps)} sweeps.")
+        peak_data = peak_hold(sweeps)
+        click.echo(f"Peak hold: {len(peak_data)} frequency bins.")
+        plot_spectrum(
+            datasets=[("Peak Hold", peak_data)],
+            title=title,
+            show=show,
+            output=output,
+        )
+    elif mode == "envelope":
+        sweeps = load_csv_sweeps(csv_file)
+        click.echo(f"Loaded {len(sweeps)} sweeps.")
+        min_s, max_s, avg_s = envelope(sweeps)
+        click.echo(f"Envelope: {len(avg_s)} frequency bins.")
+        plot_envelope(
+            min_series=min_s,
+            max_series=max_s,
+            avg_series=avg_s,
+            title=title,
+            show=show,
+            output=output,
+        )
 
 
 @click.group()
@@ -45,14 +123,15 @@ def cli() -> None:
               help="Do not open the plot in a browser.")
 @click.option("--title", "-t", default="RF Spectrum",
               help="Plot title.")
-def load(csv_file: str, output: Optional[str], no_show: bool, title: str) -> None:
+@click.option("--mode", "-m", type=MODE_CHOICES, default="average",
+              help="Visualization mode: average, waterfall, peak, or envelope.")
+def load(csv_file: str, output: Optional[str], no_show: bool,
+         title: str, mode: str) -> None:
     """Load an rtl_power CSV file and display spectrum plot."""
     click.echo(f"Loading {csv_file}...")
-    data = load_csv(csv_file)
-    click.echo(f"Loaded {len(data)} frequency bins.")
-
-    plot_spectrum(
-        datasets=[("Scan", data)],
+    _dispatch_mode(
+        mode=mode,
+        csv_file=csv_file,
         title=title,
         show=not no_show,
         output=output,
@@ -128,27 +207,51 @@ def save(input_file: str, output: str) -> None:
               help="Do not open the plot in a browser.")
 @click.option("--title", "-t", default="RF Spectrum",
               help="Plot title.")
+@click.option("--mode", "-m", type=MODE_CHOICES, default="average",
+              help="Visualization mode: average, waterfall, peak, or envelope.")
 def plot_cmd(
     csv_files: tuple,
     output: Optional[str],
     no_show: bool,
     title: str,
+    mode: str,
 ) -> None:
-    """Plot one or more CSV files overlaid on the same chart."""
-    datasets = []
-    for csv_file in csv_files:
-        click.echo(f"Loading {csv_file}...")
-        data = load_csv(csv_file)
-        name = Path(csv_file).stem
-        datasets.append((name, data))
-        click.echo(f"  {len(data)} bins from {name}")
+    """Plot one or more CSV files overlaid on the same chart.
 
-    plot_spectrum(
-        datasets=datasets,
-        title=title,
-        show=not no_show,
-        output=output,
-    )
+    For waterfall, peak, and envelope modes, only the first CSV file
+    is used.  For average mode, all files are overlaid.
+    """
+    if mode != "average":
+        # Time-aware modes operate on a single file
+        csv_file = csv_files[0]
+        if len(csv_files) > 1:
+            click.echo(
+                f"Warning: --mode {mode} uses only the first file; "
+                f"ignoring {len(csv_files) - 1} additional file(s)."
+            )
+        click.echo(f"Loading {csv_file}...")
+        _dispatch_mode(
+            mode=mode,
+            csv_file=csv_file,
+            title=title,
+            show=not no_show,
+            output=output,
+        )
+    else:
+        datasets = []
+        for csv_file in csv_files:
+            click.echo(f"Loading {csv_file}...")
+            data = load_csv(csv_file)
+            name = Path(csv_file).stem
+            datasets.append((name, data))
+            click.echo(f"  {len(data)} bins from {name}")
+
+        plot_spectrum(
+            datasets=datasets,
+            title=title,
+            show=not no_show,
+            output=output,
+        )
 
 
 @cli.command()
