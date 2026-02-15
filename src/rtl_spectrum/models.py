@@ -5,8 +5,7 @@ frequency bin with its measured power — the fundamental data unit
 throughout the library.
 """
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass

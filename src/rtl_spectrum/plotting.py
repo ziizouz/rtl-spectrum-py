@@ -6,7 +6,7 @@ crosshair hover, and NaN gap handling.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from rtl_spectrum.formatters import format_frequency, format_power
 from rtl_spectrum.models import BinData

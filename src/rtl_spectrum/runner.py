@@ -7,7 +7,6 @@ returning parsed spectral data.
 """
 
 import subprocess
-import sys
 from typing import Callable, List, Optional
 
 from rtl_spectrum.models import BinData

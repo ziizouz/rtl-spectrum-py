@@ -5,7 +5,7 @@ primarily baseline subtraction (removing a reference/noise-floor
 scan from a signal scan).
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from rtl_spectrum.models import BinData
 

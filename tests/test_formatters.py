@@ -1,9 +1,5 @@
 """Tests for formatters — ported from Java FrequencyFormatterTest and PowerFormatterTest."""
 
-import math
-
-import pytest
-
 from rtl_spectrum.formatters import format_frequency, format_power
 
 
