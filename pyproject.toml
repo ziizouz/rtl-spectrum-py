@@ -15,6 +15,7 @@ dependencies = [
     "click",
     "tqdm",
     "kaleido",
+    "pyyaml",
 ]
 
 [project.optional-dependencies]

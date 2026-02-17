@@ -9,6 +9,7 @@ and min/max/avg envelope visualizations.
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
+from rtl_spectrum.bands import BandTable, _annotate_hover
 from rtl_spectrum.formatters import format_frequency, format_power
 from rtl_spectrum.models import BinData
 
@@ -52,6 +53,7 @@ def plot_spectrum(
     title: str = "RF Spectrum",
     show: bool = True,
     output: Optional[Union[str, Path]] = None,
+    bands: Optional[BandTable] = None,
 ) -> Optional[object]:
     """Create an interactive spectrum plot.
 
@@ -64,6 +66,8 @@ def plot_spectrum(
         output: Optional file path to save the plot.  ``.html`` files
             are saved as interactive HTML; other extensions (e.g.
             ``.png``) are saved as static images via ``kaleido``.
+        bands: Optional :class:`~rtl_spectrum.bands.BandTable` for
+            frequency-band hover annotations in interactive plots.
 
     Returns:
         The Plotly :class:`~plotly.graph_objects.Figure` object, or
@@ -78,7 +82,11 @@ def plot_spectrum(
         freqs = [b.frequency_start_parsed for b in data]
         dbms = [b.dbm_average for b in data]
         hover_texts = [
-            f"{format_frequency(f)}<br>{format_power(d)} dBm"
+            _annotate_hover(
+                f,
+                f"{format_frequency(f)}<br>{format_power(d)} dBm",
+                bands,
+            )
             for f, d in zip(freqs, dbms)
         ]
         fig.add_trace(go.Scatter(
@@ -117,6 +125,7 @@ def plot_waterfall(
     title: str = "RF Waterfall / Spectrogram",
     show: bool = True,
     output: Optional[Union[str, Path]] = None,
+    bands: Optional[BandTable] = None,
 ) -> Optional[object]:
     """Create a waterfall/spectrogram heatmap plot.
 
@@ -131,6 +140,8 @@ def plot_waterfall(
         title: Chart title.
         show: If ``True``, opens the plot in the default browser.
         output: Optional file path to save the plot.
+        bands: Optional :class:`~rtl_spectrum.bands.BandTable` for
+            frequency-band hover annotations in interactive plots.
 
     Returns:
         The Plotly :class:`~plotly.graph_objects.Figure` object, or
@@ -165,7 +176,20 @@ def plot_waterfall(
             row[idx] = b.dbm_average
         z_matrix.append(row)
 
-    fig = go.Figure(data=go.Heatmap(
+    # Build band annotation customdata for each (sweep, freq) cell
+    if bands is not None:
+        from rtl_spectrum.bands import format_band_hover, lookup_band
+        band_labels = [
+            format_band_hover(lookup_band(f, bands)) for f in freq_axis
+        ]
+        # customdata: 2-D array matching z_matrix shape
+        customdata = [band_labels] * len(timestamps)
+        band_tpl = "<br>───<br>%{customdata}"
+    else:
+        customdata = None  # type: ignore[assignment]
+        band_tpl = ""
+
+    heatmap_kwargs = dict(
         x=freq_axis,
         y=timestamps,
         z=z_matrix,
@@ -175,9 +199,14 @@ def plot_waterfall(
             "Frequency: %{x:,} Hz<br>"
             "Time: %{y}<br>"
             "Power: %{z:.2f} dBm"
-            "<extra></extra>"
+            + band_tpl
+            + "<extra></extra>"
         ),
-    ))
+    )
+    if customdata is not None:
+        heatmap_kwargs["customdata"] = customdata
+
+    fig = go.Figure(data=go.Heatmap(**heatmap_kwargs))
 
     fig.update_layout(
         title=title,
@@ -203,6 +232,7 @@ def plot_envelope(
     title: str = "RF Spectrum Envelope",
     show: bool = True,
     output: Optional[Union[str, Path]] = None,
+    bands: Optional[BandTable] = None,
 ) -> Optional[object]:
     """Create an envelope plot showing min/max band with average line.
 
@@ -217,6 +247,8 @@ def plot_envelope(
         title: Chart title.
         show: If ``True``, opens the plot in the default browser.
         output: Optional file path to save the plot.
+        bands: Optional :class:`~rtl_spectrum.bands.BandTable` for
+            frequency-band hover annotations in interactive plots.
 
     Returns:
         The Plotly :class:`~plotly.graph_objects.Figure` object, or
@@ -242,7 +274,11 @@ def plot_envelope(
         name="Max",
         line=dict(color="#ff4444", width=1.5),
         hovertext=[
-            f"{format_frequency(f)}<br>Max: {format_power(d)} dBm"
+            _annotate_hover(
+                f,
+                f"{format_frequency(f)}<br>Max: {format_power(d)} dBm",
+                bands,
+            )
             for f, d in zip(freqs_max, dbm_max)
         ],
         hoverinfo="text",
@@ -258,7 +294,11 @@ def plot_envelope(
         fill="tonexty",
         fillcolor="rgba(100, 100, 255, 0.15)",
         hovertext=[
-            f"{format_frequency(f)}<br>Min: {format_power(d)} dBm"
+            _annotate_hover(
+                f,
+                f"{format_frequency(f)}<br>Min: {format_power(d)} dBm",
+                bands,
+            )
             for f, d in zip(freqs_min, dbm_min)
         ],
         hoverinfo="text",
@@ -272,7 +312,11 @@ def plot_envelope(
         name="Average",
         line=dict(color="#00ff00", width=2),
         hovertext=[
-            f"{format_frequency(f)}<br>Avg: {format_power(d)} dBm"
+            _annotate_hover(
+                f,
+                f"{format_frequency(f)}<br>Avg: {format_power(d)} dBm",
+                bands,
+            )
             for f, d in zip(freqs_avg, dbm_avg)
         ],
         hoverinfo="text",

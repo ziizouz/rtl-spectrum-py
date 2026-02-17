@@ -26,6 +26,7 @@ from typing import Optional
 import click
 
 from rtl_spectrum.analysis import envelope, peak_hold, subtract
+from rtl_spectrum.bands import load_bands
 from rtl_spectrum.io import load_csv, load_csv_sweeps, save_csv
 from rtl_spectrum.plotting import plot_envelope, plot_spectrum, plot_waterfall
 from rtl_spectrum.runner import (
@@ -51,6 +52,7 @@ def _dispatch_mode(
     title: str,
     show: bool,
     output: Optional[str],
+    bands_file: Optional[str] = None,
 ) -> None:
     """Load data and dispatch to the correct analysis + plot path.
 
@@ -60,7 +62,19 @@ def _dispatch_mode(
         title: Plot title.
         show: Whether to open the plot in the browser.
         output: Optional file path to save the plot.
+        bands_file: Optional path to a frequency allocation YAML file
+            for hover annotations.
     """
+    bands = None
+    if bands_file:
+        try:
+            bands = load_bands(bands_file)
+        except FileNotFoundError as exc:
+            raise click.ClickException(str(exc))
+        except ValueError as exc:
+            raise click.ClickException(str(exc))
+        click.echo(f"Loaded {len(bands.bands)} frequency band entries.")
+
     if mode == "average":
         data = load_csv(csv_file)
         click.echo(f"Loaded {len(data)} frequency bins.")
@@ -69,6 +83,7 @@ def _dispatch_mode(
             title=title,
             show=show,
             output=output,
+            bands=bands,
         )
     elif mode == "waterfall":
         sweeps = load_csv_sweeps(csv_file)
@@ -82,6 +97,7 @@ def _dispatch_mode(
             title=title,
             show=show,
             output=output,
+            bands=bands,
         )
     elif mode == "peak":
         sweeps = load_csv_sweeps(csv_file)
@@ -93,6 +109,7 @@ def _dispatch_mode(
             title=title,
             show=show,
             output=output,
+            bands=bands,
         )
     elif mode == "envelope":
         sweeps = load_csv_sweeps(csv_file)
@@ -106,6 +123,7 @@ def _dispatch_mode(
             title=title,
             show=show,
             output=output,
+            bands=bands,
         )
 
 
@@ -125,8 +143,10 @@ def cli() -> None:
               help="Plot title.")
 @click.option("--mode", "-m", type=MODE_CHOICES, default="average",
               help="Visualization mode: average, waterfall, peak, or envelope.")
+@click.option("--bands", type=click.Path(), default=None,
+              help="Path to a frequency allocation YAML file for hover annotations.")
 def load(csv_file: str, output: Optional[str], no_show: bool,
-         title: str, mode: str) -> None:
+         title: str, mode: str, bands: Optional[str]) -> None:
     """Load an rtl_power CSV file and display spectrum plot."""
     click.echo(f"Loading {csv_file}...")
     _dispatch_mode(
@@ -135,6 +155,7 @@ def load(csv_file: str, output: Optional[str], no_show: bool,
         title=title,
         show=not no_show,
         output=output,
+        bands_file=bands,
     )
 
 
@@ -209,18 +230,31 @@ def save(input_file: str, output: str) -> None:
               help="Plot title.")
 @click.option("--mode", "-m", type=MODE_CHOICES, default="average",
               help="Visualization mode: average, waterfall, peak, or envelope.")
+@click.option("--bands", type=click.Path(), default=None,
+              help="Path to a frequency allocation YAML file for hover annotations.")
 def plot_cmd(
     csv_files: tuple,
     output: Optional[str],
     no_show: bool,
     title: str,
     mode: str,
+    bands: Optional[str],
 ) -> None:
     """Plot one or more CSV files overlaid on the same chart.
 
     For waterfall, peak, and envelope modes, only the first CSV file
     is used.  For average mode, all files are overlaid.
     """
+    bands_table = None
+    if bands:
+        try:
+            bands_table = load_bands(bands)
+        except FileNotFoundError as exc:
+            raise click.ClickException(str(exc))
+        except ValueError as exc:
+            raise click.ClickException(str(exc))
+        click.echo(f"Loaded {len(bands_table.bands)} frequency band entries.")
+
     if mode != "average":
         # Time-aware modes operate on a single file
         csv_file = csv_files[0]
@@ -236,6 +270,7 @@ def plot_cmd(
             title=title,
             show=not no_show,
             output=output,
+            bands_file=bands,
         )
     else:
         datasets = []
@@ -251,6 +286,7 @@ def plot_cmd(
             title=title,
             show=not no_show,
             output=output,
+            bands=bands_table,
         )
 
 

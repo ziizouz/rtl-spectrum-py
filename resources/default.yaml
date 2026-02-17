@@ -1,0 +1,147 @@
+# =============================================================================
+# rtl-spectrum — Sample Frequency Allocation Table
+# =============================================================================
+#
+# This file demonstrates the YAML format expected by the --bands CLI option.
+# It contains a few well-known frequency bands for demonstration purposes.
+#
+# To create your own allocation table, follow this structure:
+#
+#   - Each entry has:
+#       primary_service_category:  <string>   # service name (e.g. BROADCASTING)
+#       primary_frequency_range:              # overall band edges
+#         - <start_khz>                       # start frequency in kHz
+#         - <end_khz>                         # end frequency in kHz
+#       subbands:                             # list of sub-band allocations
+#         - frequency_range:
+#             - <start_khz>                   # sub-band start in kHz
+#             - <end_khz>                     # sub-band end in kHz
+#           width: <bandwidth_khz>            # bandwidth in kHz
+#           usage: <string>                   # human-readable usage description
+#           technical_parameters:             # optional technical details
+#             mode_of_traffic: ''
+#
+#   *** All frequencies must be in kHz (kilohertz). ***
+#   *** The library converts them to Hz internally.  ***
+#
+# For a comprehensive real-world example, see the Finnish national frequency
+# allocation table:
+#   https://www.kyberturvallisuuskeskus.fi/
+#
+# Usage:
+#   rtl-spectrum load scan.csv --bands /path/to/your/allocation.yaml
+#   rtl-spectrum load scan.csv --mode waterfall --bands /path/to/allocation.yaml
+#
+# =============================================================================
+
+# FM Radio Broadcasting (87.5 – 108 MHz)
+- primary_service_category: BROADCASTING
+  primary_frequency_range:
+  - 87500.0
+  - 108000.0
+  subbands:
+  - frequency_range:
+    - 87500.0
+    - 108000.0
+    width: 20500.0
+    usage: FM Radio
+    technical_parameters:
+      mode_of_traffic: ''
+
+# Aeronautical Radionavigation (108 – 117.975 MHz)
+- primary_service_category: AERONAUTICAL RADIONAVIGATION
+  primary_frequency_range:
+  - 108000.0
+  - 117975.0
+  subbands:
+  - frequency_range:
+    - 108000.0
+    - 111975.0
+    width: 3975.0
+    usage: ILS Localizer
+    technical_parameters:
+      mode_of_traffic: ''
+  - frequency_range:
+    - 111975.0
+    - 117975.0
+    width: 6000.0
+    usage: VOR
+    technical_parameters:
+      mode_of_traffic: ''
+
+# Amateur Radio — 2 m band (144 – 146 MHz)
+- primary_service_category: AMATEUR
+  primary_frequency_range:
+  - 144000.0
+  - 146000.0
+  subbands:
+  - frequency_range:
+    - 144000.0
+    - 146000.0
+    width: 2000.0
+    usage: Amateur Radio (2 m)
+    technical_parameters:
+      mode_of_traffic: ''
+
+# ISM Band (433.05 – 434.79 MHz)
+- primary_service_category: ISM
+  primary_frequency_range:
+  - 433050.0
+  - 434790.0
+  subbands:
+  - frequency_range:
+    - 433050.0
+    - 434790.0
+    width: 1740.0
+    usage: ISM / Short Range Devices
+    technical_parameters:
+      mode_of_traffic: ''
+
+# Amateur Radio — 70 cm band (430 – 440 MHz)
+- primary_service_category: AMATEUR
+  primary_frequency_range:
+  - 430000.0
+  - 440000.0
+  subbands:
+  - frequency_range:
+    - 430000.0
+    - 440000.0
+    width: 10000.0
+    usage: Amateur Radio (70 cm)
+    technical_parameters:
+      mode_of_traffic: ''
+
+# GSM-900 Uplink & Downlink (880 – 960 MHz)
+- primary_service_category: MOBILE
+  primary_frequency_range:
+  - 880000.0
+  - 960000.0
+  subbands:
+  - frequency_range:
+    - 880000.0
+    - 915000.0
+    width: 35000.0
+    usage: GSM-900 Uplink
+    technical_parameters:
+      mode_of_traffic: ''
+  - frequency_range:
+    - 925000.0
+    - 960000.0
+    width: 35000.0
+    usage: GSM-900 Downlink
+    technical_parameters:
+      mode_of_traffic: ''
+
+# Wi-Fi / WLAN — 2.4 GHz ISM Band (2400 – 2483.5 MHz)
+- primary_service_category: ISM
+  primary_frequency_range:
+  - 2400000.0
+  - 2483500.0
+  subbands:
+  - frequency_range:
+    - 2400000.0
+    - 2483500.0
+    width: 83500.0
+    usage: Wi-Fi / Bluetooth (2.4 GHz)
+    technical_parameters:
+      mode_of_traffic: ''

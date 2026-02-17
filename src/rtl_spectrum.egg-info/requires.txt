@@ -3,6 +3,7 @@ plotly
 click
 tqdm
 kaleido
+pyyaml
 
 [dev]
 pytest

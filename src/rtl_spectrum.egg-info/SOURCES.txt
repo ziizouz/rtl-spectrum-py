@@ -1,6 +1,8 @@
+README.md
 pyproject.toml
 src/rtl_spectrum/__init__.py
 src/rtl_spectrum/analysis.py
+src/rtl_spectrum/bands.py
 src/rtl_spectrum/cli.py
 src/rtl_spectrum/formatters.py
 src/rtl_spectrum/io.py
@@ -16,7 +18,10 @@ src/rtl_spectrum.egg-info/entry_points.txt
 src/rtl_spectrum.egg-info/requires.txt
 src/rtl_spectrum.egg-info/top_level.txt
 tests/test_analysis.py
+tests/test_bands.py
 tests/test_formatters.py
 tests/test_io.py
 tests/test_parser.py
+tests/test_sweep_parser.py
+tests/test_time_analysis.py
 tests/test_validation.py

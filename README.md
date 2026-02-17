@@ -1,6 +1,6 @@
 # rtl-spectrum
 
-A modular Python library and CLI for spectral analysis of [rtl_power](https://www.kc1ght.com/sdr/rtl-power) data.
+A modular Python library and CLI for spectral analysis of [rtl_power](http://kmkeen.com/rtl-power/) data.
 
 Ported from the Java [rtlSpectrum](https://github.com/dernasherbrezon/rtlSpectrum) project.
 
@@ -15,6 +15,7 @@ Ported from the Java [rtlSpectrum](https://github.com/dernasherbrezon/rtlSpectru
 - **Subtract** a baseline/noise-floor scan from a signal to isolate real transmissions
 - **Run** rtl_power directly from Python with configurable scan parameters
 - **Save** processed data back to rtl_power-compatible CSV format
+- **Band annotation** — load a frequency allocation YAML table and see band/sub-band usage info on hover in interactive plots
 - **CLI** for all operations via `rtl-spectrum` command with `--mode` selection
 
 ## Gallery
@@ -86,6 +87,10 @@ rtl-spectrum load scan.csv --mode peak --output peak.png
 # Min/Max/Avg envelope
 rtl-spectrum load scan.csv --mode envelope
 
+# Annotate hover with frequency band allocations (optional — disabled by default)
+rtl-spectrum load scan.csv --bands /path/to/allocations.yaml
+rtl-spectrum load scan.csv --mode waterfall --bands /path/to/allocations.yaml
+
 # Subtract baseline from signal
 rtl-spectrum subtract --signal scan.csv --baseline noise.csv
 
@@ -138,6 +143,16 @@ plot_spectrum(
 min_s, max_s, avg_s = envelope(sweeps)
 plot_envelope(min_s, max_s, avg_s, title="Envelope", output="envelope.png")
 
+# --- Band annotations (interactive hover, optional) ---
+from rtl_spectrum.bands import load_bands
+
+bands = load_bands("/path/to/allocation.yaml")  # see resources/default.yaml for format
+plot_spectrum(
+    datasets=[("Signal", signal)],
+    title="Annotated Spectrum",
+    bands=bands,  # hover shows band/sub-band info
+)
+
 # --- Subtraction ---
 baseline = load_csv("noise.csv")
 result = subtract(signal, baseline)
@@ -155,6 +170,10 @@ rtl-spectrum-py/
 │       └── ci.yml             # GitHub Actions CI
 ├── docs/
 │   └── images/                # Generated plot images
+├── resources/
+│   ├── README.md                  # Format docs for allocation YAML files
+│   ├── default.yaml               # Sample frequency allocation (format demo)
+│   └── Finnish_frequency_allocation_table.yaml
 ├── src/
 │   └── rtl_spectrum/
 │       ├── __init__.py        # Package version
@@ -163,6 +182,7 @@ rtl-spectrum-py/
 │       ├── io.py              # load_csv / load_csv_sweeps / save_csv
 │       ├── runner.py          # rtl_power subprocess wrapper
 │       ├── analysis.py        # subtract, peak_hold, envelope
+│       ├── bands.py           # Frequency band allocation lookup
 │       ├── formatters.py      # Human-readable frequency/power formatting
 │       ├── plotting.py        # plot_spectrum, plot_waterfall, plot_envelope
 │       ├── progress.py        # Progress reporting
@@ -176,7 +196,8 @@ rtl-spectrum-py/
     ├── test_io.py             # I/O round-trip tests
     ├── test_validation.py     # End-to-end validation
     ├── test_sweep_parser.py   # SweepParser & load_csv_sweeps tests
-    └── test_time_analysis.py  # peak_hold, envelope, waterfall, envelope plot tests
+    ├── test_time_analysis.py  # peak_hold, envelope, waterfall, envelope plot tests
+    └── test_bands.py          # Band annotation tests
 ```
 
 ## Modules
@@ -226,10 +247,17 @@ Groups CSV rows into individual sweeps by detecting changes in the `date + time`
 
 ### `plotting`
 
-- `plot_spectrum(datasets, ...)` — Create interactive Plotly line charts with dark theme, crosshair hover, and optional HTML/PNG export. Supports multi-series overlay.
-- `plot_waterfall(sweeps, ...)` — Render a 2-D spectrogram heatmap (frequency × sweep × power) using the fixed `SDR_COLORSCALE` (navy → blue → green → yellow → red). Supports HTML/PNG export.
-- `plot_envelope(min_series, max_series, avg_series, ...)` — Plot a filled band between min and max with a green average trace. Supports HTML/PNG export.
+- `plot_spectrum(datasets, ..., bands=None)` — Create interactive Plotly line charts with dark theme, crosshair hover, and optional HTML/PNG export. Supports multi-series overlay. When `bands` is provided, hover tooltips include frequency allocation info.
+- `plot_waterfall(sweeps, ..., bands=None)` — Render a 2-D spectrogram heatmap (frequency × sweep × power) using the fixed `SDR_COLORSCALE` (navy → blue → green → yellow → red). Supports HTML/PNG export.
+- `plot_envelope(min_series, max_series, avg_series, ..., bands=None)` — Plot a filled band between min and max with a green average trace. Supports HTML/PNG export.
 - `SDR_COLORSCALE` — Module-level constant defining the fixed SDR-style colorscale used by `plot_waterfall`.
+
+### `bands`
+
+- `load_bands(path)` — Load a frequency allocation YAML file and return a `BandTable` for fast lookup. Validates the YAML structure before processing (raises `ValueError` for malformed files). All YAML frequencies are expected in **kHz** and are converted to Hz internally.
+- `validate_bands_yaml(data)` — Validate that parsed YAML data conforms to the expected band allocation format. Inspects the first few entries for required fields (`primary_service_category`, `primary_frequency_range`, `subbands`). Raises `ValueError` with a descriptive message on mismatch.
+- `lookup_band(freq_hz, table)` — Find the narrowest band/sub-band containing the given frequency. Returns a `BandInfo` with `start_hz`, `end_hz`, `width_khz`, `usage`, and `primary_service`, or `None` if no band matches.
+- `format_band_hover(info)` — Format a `BandInfo` as a compact HTML snippet for Plotly tooltips (shows service category, frequency range, and sub-band usage).
 
 ## CLI Reference
 
@@ -260,12 +288,40 @@ rtl-spectrum load scan.csv --mode waterfall
 rtl-spectrum plot scan.csv -m envelope --output envelope.png --no-show
 ```
 
+### Band Annotations (`--bands`)
+
+The `load` and `plot` commands accept an optional `--bands` option pointing to the
+full path of a frequency allocation YAML file.  When provided, hovering over any
+frequency in an interactive (HTML) plot shows the matching band or sub-band
+allocation.  When omitted, annotations are silently disabled.
+
+```bash
+rtl-spectrum load scan.csv --bands /path/to/allocations.yaml
+rtl-spectrum load scan.csv --mode waterfall --bands /path/to/allocations.yaml
+```
+
+A sample `resources/default.yaml` is included in the repository as a format
+reference.  See `resources/README.md` for documentation on creating your own
+allocation file.
+
+The tooltip displays:
+- 📡 **Primary service** (e.g. *BROADCASTING*)
+- **Frequency range** in human-readable units (e.g. *87.5 MHz – 108 MHz*)
+- **Sub-band usage** (e.g. *FM Radio*) when the cursor is inside a sub-band
+
+The YAML format expects frequencies in **kHz**.  See `resources/default.yaml`
+for a format reference with inline documentation, and `resources/README.md`
+for detailed field descriptions.
+
+> **Note:** Band annotations only appear in interactive HTML plots.
+> Static PNG exports are unaffected.
+
 Run `rtl-spectrum COMMAND --help` for detailed options on each subcommand.
 
 ## Testing
 
 ```bash
-# Run all tests (76 tests)
+# Run all tests (118 tests)
 python -m pytest tests/ -v
 
 # With coverage
